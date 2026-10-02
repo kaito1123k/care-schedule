@@ -1,0 +1,266 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>介護の予定帳</title>
+  <meta name="description" content="自分専用の介護の予定帳（1日の予定・入浴・移動支援・利用者メモ）">
+  <meta name="theme-color" content="#f4f5f7" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#0b0d10" media="(prefers-color-scheme: dark)">
+  <meta name="color-scheme" content="light dark">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <meta name="apple-mobile-web-app-title" content="予定帳">
+  <meta name="format-detection" content="telephone=no">
+  <link rel="manifest" href="manifest.json">
+  <link rel="icon" href="icons/icon.svg" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+  <link rel="stylesheet" href="css/style.css">
+  <script type="module" src="js/app.js"></script>
+</head>
+<body>
+  <header class="topbar">
+    <h1 id="view-title">予定</h1>
+  </header>
+
+  <main>
+    <!-- 1日の予定 -->
+    <section id="view-day" class="view" data-title="予定">
+      <div class="day-nav">
+        <button type="button" class="icon-btn" data-day-step="-1" aria-label="前の日">‹</button>
+        <div class="day-label">
+          <div id="day-label"></div>
+          <div class="day-rel" id="day-rel"></div>
+        </div>
+        <button type="button" class="icon-btn" data-day-step="1" aria-label="次の日">›</button>
+      </div>
+      <button type="button" class="btn-link back-today" id="back-today" hidden>今日に戻る</button>
+      <div class="day-summary" id="day-summary"></div>
+      <ul class="item-list" id="item-list"></ul>
+      <button type="button" class="btn btn-primary btn-block btn-big" id="add-item">＋ 予定を追加</button>
+      <button type="button" class="btn btn-secondary btn-block" id="edit-day">出勤・休憩・退勤を入力</button>
+      <p class="hint" id="day-hint"></p>
+    </section>
+
+    <!-- カレンダー -->
+    <section id="view-calendar" class="view" data-title="カレンダー" hidden>
+      <div class="month-nav">
+        <button type="button" class="icon-btn" data-month-step="-1" aria-label="前の月">‹</button>
+        <div class="month-label" id="month-label"></div>
+        <button type="button" class="icon-btn" data-month-step="1" aria-label="次の月">›</button>
+      </div>
+      <div class="legend">
+        <span class="legend-item"><span class="dot k-bath"></span>入浴</span>
+        <span class="legend-item"><span class="dot k-move"></span>移動支援</span>
+        <span class="legend-item"><span class="dot k-other"></span>その他</span>
+        <span class="legend-item"><span class="swim-mark">水</span>水着あり</span>
+        <span class="legend-item"><span class="in-mark">9:00</span>出勤時刻</span>
+      </div>
+      <div class="cal" id="calendar" role="grid" aria-label="予定カレンダー"></div>
+      <p class="small">日付をタップすると、その日の予定を開きます。</p>
+      <div class="card">
+        <h2>この月の予定</h2>
+        <dl class="kv" id="month-summary"></dl>
+      </div>
+    </section>
+
+    <!-- 利用者 -->
+    <section id="view-clients" class="view" data-title="利用者" hidden>
+      <div class="client-tools">
+        <input type="search" id="client-search" placeholder="名前・町で探す" aria-label="名前・町で探す" autocomplete="off">
+        <button type="button" class="btn btn-primary" id="add-client">＋ 追加</button>
+      </div>
+      <div class="filter" role="radiogroup" aria-label="絞り込み" id="client-filter">
+        <button type="button" role="radio" data-filter="all" aria-checked="true">すべて</button>
+        <button type="button" role="radio" data-filter="need" aria-checked="false">水着いる</button>
+        <button type="button" role="radio" data-filter="unknown" aria-checked="false">水着未確認</button>
+      </div>
+      <ul class="client-list" id="client-list"></ul>
+      <p class="hint">データはこのiPhoneの中だけに保存されます。</p>
+    </section>
+
+    <!-- 設定 -->
+    <section id="view-settings" class="view" data-title="設定" hidden>
+      <div class="card">
+        <h2>表示</h2>
+        <label class="field">
+          <span>テーマ</span>
+          <select id="theme-select">
+            <option value="auto">自動（iPhoneの設定に合わせる）</option>
+            <option value="light">ライト</option>
+            <option value="dark">ダーク</option>
+          </select>
+        </label>
+      </div>
+
+      <form class="card" id="depart-form" novalidate>
+        <h2>出発時刻</h2>
+        <label class="field">
+          <span>出勤の何分前に出発するか</span>
+          <input type="number" id="depart-min" inputmode="numeric" min="0" max="600" step="5" required>
+          <small class="notice">90分 = 1時間30分前。予定画面のいちばん上に「出発」として表示されます。</small>
+        </label>
+        <button type="submit" class="btn btn-primary btn-block">保存</button>
+      </form>
+
+      <div class="card">
+        <h2>バックアップ（CSV）</h2>
+        <p class="small" id="backup-info"></p>
+        <p class="small warn-text">CSVには利用者さんの苗字・フルネーム・町名・内容が入ります。メールやLINEで送らず、iPhoneの「ファイル」アプリなど自分だけが見られる場所に保存してください。</p>
+        <button type="button" class="btn btn-primary btn-block" id="export-csv">CSVで書き出す</button>
+        <label class="btn btn-secondary btn-block file-btn">
+          CSVを読み込む
+          <input type="file" id="import-csv" accept=".csv,text/csv,text/plain">
+        </label>
+        <p class="small">読み込むと、同じ予定と同じ苗字の利用者はCSVの内容で置き換わります。CSVにないデータはそのまま残ります。</p>
+      </div>
+
+      <div class="card">
+        <h2>データの削除</h2>
+        <button type="button" class="btn btn-danger btn-block" id="clear-all">全データを削除</button>
+      </div>
+      <p class="hint" id="app-version"></p>
+    </section>
+  </main>
+
+  <nav class="tabbar" aria-label="画面切り替え">
+    <button type="button" data-view="day" aria-current="page"><span class="tab-ico" aria-hidden="true">◉</span>予定</button>
+    <button type="button" data-view="calendar"><span class="tab-ico" aria-hidden="true">▦</span>カレンダー</button>
+    <button type="button" data-view="clients"><span class="tab-ico" aria-hidden="true">☺</span>利用者</button>
+    <button type="button" data-view="settings"><span class="tab-ico" aria-hidden="true">⚙</span>設定</button>
+  </nav>
+
+  <!-- 予定の追加・編集 -->
+  <dialog id="item-dialog">
+    <form id="item-form" novalidate>
+      <h2 id="item-title">予定の追加</h2>
+      <label class="field">
+        <span>日付</span>
+        <input type="date" id="i-date" required>
+      </label>
+      <div class="time-range">
+        <label class="field"><span>開始</span><input type="time" id="i-start" required></label>
+        <span class="tilde" aria-hidden="true">〜</span>
+        <label class="field"><span>終了（任意）</span><input type="time" id="i-end"></label>
+      </div>
+      <label class="field">
+        <span>利用者</span>
+        <select id="i-client"></select>
+      </label>
+      <div class="client-info" id="i-client-info" hidden>
+        <dl class="info-list" id="i-client-detail"></dl>
+        <button type="button" class="btn btn-secondary btn-block" id="i-client-edit">利用者の情報を変更</button>
+      </div>
+      <fieldset class="field">
+        <legend>内容</legend>
+        <div class="kind-picker" id="i-kind" role="radiogroup">
+          <button type="button" role="radio" class="k-bath" data-kind="bath">入浴</button>
+          <button type="button" role="radio" class="k-move" data-kind="move">移動支援</button>
+          <button type="button" role="radio" class="k-other" data-kind="other">その他</button>
+        </div>
+      </fieldset>
+      <fieldset class="field" id="i-swim-field">
+        <legend>水着</legend>
+        <div class="swim-toggle" id="i-swim" role="radiogroup">
+          <button type="button" role="radio" data-swim="1">水着あり</button>
+          <button type="button" role="radio" data-swim="0">水着なし</button>
+        </div>
+        <small class="notice" id="i-swim-hint"></small>
+      </fieldset>
+      <label class="field">
+        <span>メモ</span>
+        <textarea id="i-memo" rows="2" maxlength="300" placeholder="例：〇〇駅で待ち合わせ"></textarea>
+      </label>
+      <p class="error" id="i-error" role="alert" hidden></p>
+      <div class="dialog-actions">
+        <button type="button" class="btn btn-secondary" id="i-cancel">キャンセル</button>
+        <button type="submit" class="btn btn-primary">保存</button>
+      </div>
+      <div class="dialog-sub" id="i-sub">
+        <button type="button" class="btn btn-secondary" id="i-copy">コピーして別の日に追加</button>
+        <button type="button" class="btn btn-danger-text" id="i-delete">この予定を削除</button>
+      </div>
+    </form>
+  </dialog>
+
+  <!-- 出勤・休憩・退勤 -->
+  <dialog id="day-dialog">
+    <form id="day-form" novalidate>
+      <h2 id="day-title">出勤・休憩・退勤</h2>
+      <p class="depart-preview" id="d-depart"></p>
+      <div class="flow">
+        <label class="flow-step s-in">
+          <span class="flow-label">出勤</span>
+          <input type="time" id="d-start" required>
+        </label>
+        <div class="flow-step s-break">
+          <span class="flow-label">休憩</span>
+          <div class="break-range">
+            <input type="time" id="d-break-start" aria-label="休憩の始まり">
+            <span aria-hidden="true">〜</span>
+            <input type="time" id="d-break-end" aria-label="休憩の終わり">
+          </div>
+          <button type="button" class="btn-link" id="d-no-break">休憩なしにする</button>
+        </div>
+        <label class="flow-step s-out">
+          <span class="flow-label">退勤（任意）</span>
+          <input type="time" id="d-end">
+        </label>
+      </div>
+      <p class="error" id="d-error" role="alert" hidden></p>
+      <div class="dialog-actions">
+        <button type="button" class="btn btn-secondary" id="d-cancel">キャンセル</button>
+        <button type="submit" class="btn btn-primary">保存</button>
+      </div>
+      <button type="button" class="btn btn-danger-text btn-block" id="d-delete">この日の出勤・退勤を消す</button>
+    </form>
+  </dialog>
+
+  <!-- 利用者の追加・編集 -->
+  <dialog id="client-dialog">
+    <form id="client-form" novalidate>
+      <h2 id="client-title">利用者の追加</h2>
+      <label class="field">
+        <span>苗字</span>
+        <input type="text" id="c-name" maxlength="8" autocomplete="off" placeholder="例：山田" required>
+        <small class="notice">予定や一覧にはこの苗字で表示されます。</small>
+      </label>
+      <label class="field">
+        <span>フルネーム（任意）</span>
+        <input type="text" id="c-fullname" maxlength="20" autocomplete="off" placeholder="例：山田 花子">
+      </label>
+      <label class="field">
+        <span>住所の町（任意）</span>
+        <input type="text" id="c-town" maxlength="20" autocomplete="off" placeholder="例：〇〇町">
+        <small class="notice">町名まで。番地・建物名・部屋番号は入れないでください。</small>
+      </label>
+      <fieldset class="field">
+        <legend>入浴介助の水着（いつも）</legend>
+        <div class="swim-picker" id="c-swim" role="radiogroup">
+          <button type="button" role="radio" data-swim="need">いる</button>
+          <button type="button" role="radio" data-swim="no">いらない</button>
+          <button type="button" role="radio" data-swim="unknown">未確認</button>
+        </div>
+        <small class="notice">入浴の予定を入れるとき、ここに合わせて「水着あり／なし」が自動で選ばれます。</small>
+      </fieldset>
+      <label class="field">
+        <span>内容（介助のポイントなど）</span>
+        <textarea id="c-note" rows="5" maxlength="500" placeholder="例：右側から介助。声かけはゆっくり。"></textarea>
+        <small class="notice">仕事で必要なことだけを短く書きましょう。病名などは書かないのがおすすめです。</small>
+      </label>
+      <p class="error" id="c-error" role="alert" hidden></p>
+      <div class="dialog-actions">
+        <button type="button" class="btn btn-secondary" id="c-cancel">キャンセル</button>
+        <button type="submit" class="btn btn-primary">保存</button>
+      </div>
+      <button type="button" class="btn btn-danger-text btn-block" id="c-delete">この利用者を削除</button>
+    </form>
+  </dialog>
+
+  <div class="toast" id="toast" role="status" aria-live="polite" hidden>
+    <span id="toast-msg"></span>
+    <span class="toast-actions" id="toast-actions"></span>
+  </div>
+</body>
+</html>
