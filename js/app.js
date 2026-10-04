@@ -2,11 +2,12 @@ import './time-select.js';
 import {
   KINDS, KIND_KEYS, DEFAULT_DAY, DEFAULT_DEPART_MIN, validateItem, validateDay, buildTimeline, departTime,
   durationMin, sortItems, overlappingIds, summarizeMonth, dateStr, addDays, fmtHM, shortTime, isWeekend, stepDay,
+  sortClientsByVisits,
 } from './calc.js';
 import { toCSV, importCSV } from './csv.js';
 import * as db from './db.js';
 
-export const APP_VERSION = '3.4.0';
+export const APP_VERSION = '3.5.0';
 
 const $ = (id) => document.getElementById(id);
 const DOW = ['日', '月', '火', '水', '木', '金', '土'];
@@ -54,8 +55,14 @@ function clientNameOf(item) {
   return clientOf(item)?.name || item.clientName || '';
 }
 
+/** よく行く順（直近90日に予定へ入れた回数が多い順） */
 function sortedClients() {
-  return [...state.clients.values()].sort((a, b) => a.name.localeCompare(b.name, 'ja'));
+  return sortClientsByVisits([...state.clients.values()], [...state.items.values()], today());
+}
+
+function recentVisits(clientId) {
+  const since = addDays(today(), -90);
+  return [...state.items.values()].filter((i) => i.clientId === clientId && i.date >= since).length;
 }
 
 function itemsOn(date) {
@@ -88,7 +95,8 @@ function toast(msg, actions = []) {
   }
   $('toast').hidden = false;
   clearTimeout(toastTimer);
-  toastTimer = setTimeout(() => { $('toast').hidden = true; }, actions.length ? 8000 : 3500);
+  // 取り消しボタンがあるときも長く残らないよう短めにする。タップでもすぐ消せる
+  toastTimer = setTimeout(() => { $('toast').hidden = true; }, actions.length ? 4000 : 2000);
 }
 
 /* ---------- 画面切り替え ---------- */
@@ -469,7 +477,7 @@ function renderClients() {
   $('client-list').innerHTML = list.length
     ? list.map((c) => `<li><button type="button" class="client-item" data-client="${esc(c.id)}">
         <span class="top"><span class="name">${esc(c.name)} さん</span><span class="badge badge-${esc(c.swimsuit)}">${SWIM_LABEL[c.swimsuit]}</span></span>
-        ${c.fullName || c.town ? `<span class="sub2">${esc([c.fullName, c.town].filter(Boolean).join('・'))}</span>` : ''}
+        <span class="sub2">${esc([c.fullName, c.town, `最近90日 ${recentVisits(c.id)}回`].filter(Boolean).join('・'))}</span>
         ${c.note ? `<span class="note">${esc(c.note)}</span>` : ''}
       </button></li>`).join('')
     : `<li class="empty">${state.clients.size ? '該当する利用者はいません' : 'まだ登録されていません。「＋ 追加」から登録できます。'}</li>`;
@@ -743,6 +751,7 @@ function bindEvents() {
     await db.setSetting('theme', e.target.value);
   });
   $('export-csv').addEventListener('click', exportCSV);
+  $('toast-msg').addEventListener('click', () => { $('toast').hidden = true; });
   $('import-csv').addEventListener('change', importFile);
   $('clear-all').addEventListener('click', clearAll);
 

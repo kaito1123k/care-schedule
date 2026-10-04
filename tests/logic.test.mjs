@@ -1,7 +1,7 @@
 // 実行: node --test tests/*.test.mjs
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { validateItem, validateDay, departTime, buildTimeline, isWeekend, stepDay, durationMin, sortItems, overlappingIds, summarizeMonth, isDate, addDays, fmtHM, shortTime } from '../js/calc.js';
+import { validateItem, validateDay, departTime, buildTimeline, isWeekend, stepDay, sortClientsByVisits, durationMin, sortItems, overlappingIds, summarizeMonth, isDate, addDays, fmtHM, shortTime } from '../js/calc.js';
 import { toCSV, parseCSV, importCSV } from '../js/csv.js';
 
 const item = (o) => ({ id: 'x', date: '2026-10-02', start: '09:00', end: '10:30', kind: 'bath', swimsuit: false, memo: '', ...o });
@@ -128,4 +128,17 @@ test('土日の判定と、土日を飛ばす日付移動', () => {
   assert.equal(stepDay('2026-10-05', -1, true), '2026-10-02'); // 月→金
   assert.equal(stepDay('2026-10-04', 1, true), '2026-10-05'); // 日→月
   assert.equal(stepDay('2026-10-02', 1, false), '2026-10-03');
+});
+
+test('利用者はよく行く順（直近90日の回数→全期間→苗字）', () => {
+  const clients = [{ id: 'a', name: '青木' }, { id: 'b', name: '井上' }, { id: 'c', name: '上田' }, { id: 'd', name: '江藤' }];
+  const items = [
+    item({ id: '1', clientId: 'b', date: '2026-10-01' }),
+    item({ id: '2', clientId: 'b', date: '2026-10-08' }), // 未来の予定も数える
+    item({ id: '3', clientId: 'c', date: '2026-09-20' }),
+    item({ id: '4', clientId: 'a', date: '2026-01-10' }), // 90日より前
+    item({ id: '5', clientId: 'a', date: '2026-01-17' }),
+    item({ id: '6', clientId: 'a', date: '2026-01-24' }),
+  ];
+  assert.deepEqual(sortClientsByVisits(clients, items, '2026-10-05').map((c) => c.id), ['b', 'c', 'a', 'd']);
 });

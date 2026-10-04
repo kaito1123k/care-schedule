@@ -153,6 +153,25 @@ export function addDays(date, n) {
   return dateStr(new Date(y, m - 1, d + n));
 }
 
+/**
+ * 利用者を「よく行く順」に並べる。
+ * 直近 recentDays 日（未来の予定も含む）に予定へ入れた回数が多い順、同じなら全期間の回数、
+ * それも同じなら苗字順。ずっと前に担当が終わった人が上に残り続けないよう直近の回数を優先する。
+ */
+export function sortClientsByVisits(clients, items, today, recentDays = 90) {
+  const since = addDays(today, -recentDays);
+  const recent = new Map();
+  const total = new Map();
+  for (const i of items) {
+    if (!i.clientId) continue;
+    total.set(i.clientId, (total.get(i.clientId) || 0) + 1);
+    if (i.date >= since) recent.set(i.clientId, (recent.get(i.clientId) || 0) + 1);
+  }
+  const r = (c) => recent.get(c.id) || 0;
+  const t = (c) => total.get(c.id) || 0;
+  return [...clients].sort((a, b) => r(b) - r(a) || t(b) - t(a) || a.name.localeCompare(b.name, 'ja'));
+}
+
 /** 土曜(6)・日曜(0)なら true */
 export function isWeekend(date) {
   const [y, m, d] = date.split('-').map(Number);
