@@ -140,9 +140,9 @@
         <input type="date" id="i-date" required>
       </label>
       <div class="time-range">
-        <label class="field"><span>開始</span><input type="time" id="i-start" required></label>
+        <label class="field"><span>開始</span><time-select id="i-start" aria-label="開始"></time-select></label>
         <span class="tilde" aria-hidden="true">〜</span>
-        <label class="field"><span>終了（任意）</span><input type="time" id="i-end"></label>
+        <label class="field"><span>終了（任意）</span><time-select id="i-end" aria-label="終了"></time-select></label>
       </div>
       <label class="field">
         <span>利用者</span>
@@ -192,20 +192,20 @@
       <div class="flow">
         <label class="flow-step s-in">
           <span class="flow-label">出勤</span>
-          <input type="time" id="d-start" required>
+          <time-select id="d-start" aria-label="出勤"></time-select>
         </label>
         <div class="flow-step s-break">
           <span class="flow-label">休憩</span>
           <div class="break-range">
-            <input type="time" id="d-break-start" aria-label="休憩の始まり">
+            <time-select id="d-break-start" aria-label="休憩の始まり"></time-select>
             <span aria-hidden="true">〜</span>
-            <input type="time" id="d-break-end" aria-label="休憩の終わり">
+            <time-select id="d-break-end" aria-label="休憩の終わり"></time-select>
           </div>
           <button type="button" class="btn-link" id="d-no-break">休憩なしにする</button>
         </div>
         <label class="flow-step s-out">
           <span class="flow-label">退勤（任意）</span>
-          <input type="time" id="d-end">
+          <time-select id="d-end" aria-label="退勤"></time-select>
         </label>
       </div>
       <p class="error" id="d-error" role="alert" hidden></p>

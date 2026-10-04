@@ -1,6 +1,6 @@
 // オフラインで動かすためのService Worker
 // アプリのファイルを更新したら CACHE_VERSION を上げること（古いキャッシュが入れ替わる）
-const CACHE_VERSION = 'care-shift-v3.1.0';
+const CACHE_VERSION = 'care-shift-v3.2.0';
 
 const APP_SHELL = [
   './',
@@ -11,6 +11,7 @@ const APP_SHELL = [
   './js/calc.js',
   './js/csv.js',
   './js/db.js',
+  './js/time-select.js',
   './icons/icon.svg',
   './icons/apple-touch-icon.png',
   './icons/icon-192.png',

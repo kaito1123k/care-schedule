@@ -1,3 +1,4 @@
+import './time-select.js';
 import {
   KINDS, KIND_KEYS, DEFAULT_DAY, DEFAULT_DEPART_MIN, validateItem, validateDay, buildTimeline, departTime,
   durationMin, sortItems, overlappingIds, summarizeMonth, dateStr, addDays, fmtHM, shortTime,
@@ -5,7 +6,7 @@ import {
 import { toCSV, importCSV } from './csv.js';
 import * as db from './db.js';
 
-export const APP_VERSION = '3.1.0';
+export const APP_VERSION = '3.2.0';
 
 const $ = (id) => document.getElementById(id);
 const DOW = ['日', '月', '火', '水', '木', '金', '土'];
