@@ -528,3 +528,5 @@ time-select .colon { font-weight: 900; font-size: 20px; }
 .cal-day.off { background: transparent; border: 1px dashed var(--border); min-height: 70px; justify-content: flex-start; }
 .cal-day.off .d { font-size: 14px; }
 .off-day .btn { margin-top: 12px; min-height: 48px; font-size: 17px; }
+.btn-big.add-top { margin-top: 10px; }
+#edit-day { margin-top: 16px; }
