@@ -1,7 +1,7 @@
 // 実行: node --test tests/*.test.mjs
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { validateItem, validateDay, departTime, buildTimeline, durationMin, sortItems, overlappingIds, summarizeMonth, isDate, addDays, fmtHM, shortTime } from '../js/calc.js';
+import { validateItem, validateDay, departTime, buildTimeline, isWeekend, stepDay, durationMin, sortItems, overlappingIds, summarizeMonth, isDate, addDays, fmtHM, shortTime } from '../js/calc.js';
 import { toCSV, parseCSV, importCSV } from '../js/csv.js';
 
 const item = (o) => ({ id: 'x', date: '2026-10-02', start: '09:00', end: '10:30', kind: 'bath', swimsuit: false, memo: '', ...o });
@@ -118,4 +118,14 @@ test('CSV：出勤・退勤と利用者のフルネーム・町も戻る', () =>
   assert.deepEqual(back.errors, []);
   assert.deepEqual(back.days, days);
   assert.deepEqual(back.clients, clients);
+});
+
+test('土日の判定と、土日を飛ばす日付移動', () => {
+  assert.equal(isWeekend('2026-10-03'), true); // 土
+  assert.equal(isWeekend('2026-10-04'), true); // 日
+  assert.equal(isWeekend('2026-10-05'), false); // 月
+  assert.equal(stepDay('2026-10-02', 1, true), '2026-10-05'); // 金→月
+  assert.equal(stepDay('2026-10-05', -1, true), '2026-10-02'); // 月→金
+  assert.equal(stepDay('2026-10-04', 1, true), '2026-10-05'); // 日→月
+  assert.equal(stepDay('2026-10-02', 1, false), '2026-10-03');
 });

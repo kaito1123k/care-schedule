@@ -153,6 +153,20 @@ export function addDays(date, n) {
   return dateStr(new Date(y, m - 1, d + n));
 }
 
+/** 土曜(6)・日曜(0)なら true */
+export function isWeekend(date) {
+  const [y, m, d] = date.split('-').map(Number);
+  const dow = new Date(y, m - 1, d).getDay();
+  return dow === 0 || dow === 6;
+}
+
+/** step 日ずつ進める。skipWeekend なら土日を飛ばして次の平日にする */
+export function stepDay(date, step, skipWeekend) {
+  let d = addDays(date, step);
+  while (skipWeekend && isWeekend(d)) d = addDays(d, step);
+  return d;
+}
+
 /** 分 → "1:30" 形式 */
 export function fmtHM(min) {
   const m = Math.round(min);

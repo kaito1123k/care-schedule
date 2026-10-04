@@ -1,6 +1,6 @@
 // オフラインで動かすためのService Worker
 // アプリのファイルを更新したら CACHE_VERSION を上げること（古いキャッシュが入れ替わる）
-const CACHE_VERSION = 'care-shift-v3.2.0';
+const CACHE_VERSION = 'care-shift-v3.3.0';
 
 const APP_SHELL = [
   './',

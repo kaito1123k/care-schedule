@@ -1,12 +1,12 @@
 import './time-select.js';
 import {
   KINDS, KIND_KEYS, DEFAULT_DAY, DEFAULT_DEPART_MIN, validateItem, validateDay, buildTimeline, departTime,
-  durationMin, sortItems, overlappingIds, summarizeMonth, dateStr, addDays, fmtHM, shortTime,
+  durationMin, sortItems, overlappingIds, summarizeMonth, dateStr, addDays, fmtHM, shortTime, isWeekend, stepDay,
 } from './calc.js';
 import { toCSV, importCSV } from './csv.js';
 import * as db from './db.js';
 
-export const APP_VERSION = '3.2.0';
+export const APP_VERSION = '3.3.0';
 
 const $ = (id) => document.getElementById(id);
 const DOW = ['日', '月', '火', '水', '木', '金', '土'];
@@ -23,6 +23,7 @@ const state = {
   month: dateStr(new Date()).slice(0, 7),
   clientFilter: 'all',
   lastBackup: null,
+  weekendOff: true, // 土日は休み（入力できない）
 };
 
 /* ---------- 共通ヘルパー ---------- */
@@ -114,6 +115,7 @@ function renderDay() {
   const d = state.day;
   const [y] = d.split('-');
   $('day-label').textContent = `${y}年${fmtDate(d)}`;
+  $('day-label').className = dowClass(d);
   $('day-rel').textContent = relDay(d);
   $('back-today').hidden = d === today();
 
@@ -129,9 +131,15 @@ function renderDay() {
 
   const day = state.days.get(d);
   const timeline = buildTimeline(day, items, state.departMin);
+  // 土日休みの設定では、土日は入力できない（以前に入れた予定があれば表示だけする）
+  const off = isOff(d);
   $('item-list').innerHTML = timeline.length
     ? timeline.map((r) => (r.type === 'item' ? itemCard(r.item, overlaps.has(r.item.id)) : markRow(r))).join('')
-    : '<li class="empty-day">この日の予定はありません</li>';
+    : off
+      ? `<li class="empty-day off-day">土日はお休みです<br><button type="button" class="btn btn-secondary" id="go-next-workday">次の平日 ${esc(fmtDate(stepDay(d, 1, true)))} を見る</button></li>`
+      : '<li class="empty-day">この日の予定はありません</li>';
+  $('add-item').hidden = off;
+  $('edit-day').hidden = off;
   $('edit-day').textContent = day ? '出勤・休憩・退勤を変更' : '出勤・休憩・退勤を入力';
 
   const days = state.lastBackup ? Math.floor((Date.now() - new Date(state.lastBackup)) / 86400000) : null;
@@ -151,6 +159,16 @@ function markRow(r) {
   return `<li><button type="button" class="mark m-${r.type}" data-day-edit>
     <span class="mlabel">${label}</span><span class="mtime">${esc(time)}</span><span class="msub">${esc(sub)}</span>
   </button></li>`;
+}
+
+function isOff(date) {
+  return state.weekendOff && isWeekend(date);
+}
+
+/** 土曜は青、日曜は赤で表示するためのクラス */
+function dowClass(date) {
+  const [y, m, d] = date.split('-').map(Number);
+  return { 0: 'sun', 6: 'sat' }[new Date(y, m - 1, d).getDay()] || '';
 }
 
 function itemCard(i, overlap) {
@@ -187,8 +205,13 @@ function renderCalendar() {
   for (let d = 1; d <= days; d++) {
     const date = `${state.month}-${String(d).padStart(2, '0')}`;
     const list = sortItems(byDate.get(date) || []);
-    const cls = ['cal-day'];
+    const cls = ['cal-day', dowClass(date)];
     if (date === t) cls.push('today');
+    // 土日休みの日は小さく表示して押せないようにする（予定が残っている日だけは開ける）
+    if (isOff(date) && !list.length && !state.days.has(date)) {
+      html += `<div class="${cls.join(' ')} off" aria-label="${m}月${d}日 お休み"><span class="d">${d}</span></div>`;
+      continue;
+    }
     let inner = `<span class="d">${d}</span>`;
     let label = `${m}月${d}日 予定なし`;
     const day = state.days.get(date);
@@ -207,6 +230,7 @@ function renderCalendar() {
     html += `<button type="button" class="${cls.join(' ')}" data-date="${date}" aria-label="${esc(label)}">${inner}</button>`;
   }
   $('calendar').innerHTML = html;
+  $('calendar').classList.toggle('weekend-off', state.weekendOff);
 
   const s = summarizeMonth([...state.items.values()], state.month);
   const rows = [
@@ -323,7 +347,8 @@ async function submitItem(e) {
     memo: $('i-memo').value.trim(),
   };
   if (it.kind !== 'bath') it.swimsuit = false;
-  const err = validateItem(it);
+  const err = validateItem(it)
+    || (isOff(it.date) ? '土日はお休みの設定です（設定の「土日は休み」で変更できます）' : null);
   if (err) {
     $('i-error').textContent = err;
     $('i-error').hidden = false;
@@ -518,6 +543,7 @@ async function deleteCurrentClient() {
 /* ---------- 設定 ---------- */
 
 function renderSettings() {
+  $('weekend-off').checked = state.weekendOff;
   $('depart-min').value = state.departMin;
   $('theme-select').value = document.documentElement.dataset.theme || 'auto';
   $('backup-info').textContent = state.lastBackup
@@ -607,11 +633,12 @@ async function clearAll() {
 /* ---------- 起動 ---------- */
 
 async function loadData() {
-  const [items, days, clients, departMin, theme, lastBackup] = await Promise.all([
+  const [items, days, clients, departMin, weekendOff, theme, lastBackup] = await Promise.all([
     db.getAllItems(),
     db.getAllDays(),
     db.getAllClients(),
     db.getSetting('departMin', DEFAULT_DEPART_MIN),
+    db.getSetting('weekendOff', true),
     db.getSetting('theme', 'auto'),
     db.getSetting('lastBackup', null),
   ]);
@@ -619,6 +646,7 @@ async function loadData() {
   state.days = new Map(days.map((d) => [d.date, d]));
   state.clients = new Map(clients.map((c) => [c.id, c]));
   state.departMin = departMin;
+  state.weekendOff = weekendOff;
   state.lastBackup = lastBackup;
   applyTheme(theme);
 }
@@ -627,10 +655,15 @@ function bindEvents() {
   for (const b of document.querySelectorAll('.tabbar button')) b.addEventListener('click', () => setView(b.dataset.view));
 
   for (const b of document.querySelectorAll('[data-day-step]')) {
-    b.addEventListener('click', () => { state.day = addDays(state.day, Number(b.dataset.dayStep)); renderDay(); });
+    b.addEventListener('click', () => { state.day = stepDay(state.day, Number(b.dataset.dayStep), state.weekendOff); renderDay(); });
   }
   $('back-today').addEventListener('click', () => { state.day = today(); renderDay(); });
   $('add-item').addEventListener('click', () => openItem(newItem(state.day), true));
+  $('item-list').addEventListener('click', (e) => {
+    if (e.target.id !== 'go-next-workday') return;
+    state.day = stepDay(state.day, 1, true);
+    renderDay();
+  });
   $('edit-day').addEventListener('click', openDay);
   $('day-form').addEventListener('submit', submitDay);
   $('d-cancel').addEventListener('click', () => $('day-dialog').close());
@@ -700,6 +733,11 @@ function bindEvents() {
 
   // 設定
   $('depart-form').addEventListener('submit', saveDepart);
+  $('weekend-off').addEventListener('change', async (e) => {
+    state.weekendOff = e.target.checked;
+    await db.setSetting('weekendOff', state.weekendOff);
+    toast(state.weekendOff ? '土日をお休みにしました' : '土日も入力できるようにしました');
+  });
   $('theme-select').addEventListener('change', async (e) => {
     applyTheme(e.target.value);
     await db.setSetting('theme', e.target.value);

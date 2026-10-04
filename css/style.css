@@ -519,3 +519,12 @@ time-select .colon { font-weight: 900; font-size: 20px; }
 .time-range .tilde, .break-range > span { text-align: center; padding: 0; line-height: 1; }
 .time-range .field { margin-bottom: 4px; }
 .time-range .tilde { display: none; }
+
+/* 土曜は青・日曜は赤 */
+.cal-day.sat .d, #day-label.sat { color: var(--primary); }
+.cal-day.sun .d, #day-label.sun { color: var(--danger); }
+/* 土日休み：土日の列を細くして押せなくする */
+.cal.weekend-off { grid-template-columns: 0.5fr repeat(5, 1fr) 0.5fr; }
+.cal-day.off { background: transparent; border: 1px dashed var(--border); min-height: 70px; justify-content: flex-start; }
+.cal-day.off .d { font-size: 14px; }
+.off-day .btn { margin-top: 12px; min-height: 48px; font-size: 17px; }
