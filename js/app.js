@@ -7,7 +7,7 @@ import {
 import { toCSV, importCSV } from './csv.js';
 import * as db from './db.js';
 
-export const APP_VERSION = '3.5.0';
+export const APP_VERSION = '3.5.1';
 
 const $ = (id) => document.getElementById(id);
 const DOW = ['日', '月', '火', '水', '木', '金', '土'];
@@ -95,8 +95,8 @@ function toast(msg, actions = []) {
   }
   $('toast').hidden = false;
   clearTimeout(toastTimer);
-  // 取り消しボタンがあるときも長く残らないよう短めにする。タップでもすぐ消せる
-  toastTimer = setTimeout(() => { $('toast').hidden = true; }, actions.length ? 4000 : 2000);
+  // 取り消しボタンの有無にかかわらず約2秒で消す。タップでもすぐ消せる
+  toastTimer = setTimeout(() => { $('toast').hidden = true; }, 2000);
 }
 
 /* ---------- 画面切り替え ---------- */
