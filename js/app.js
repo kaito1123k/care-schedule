@@ -7,7 +7,7 @@ import {
 import { toCSV, importCSV } from './csv.js';
 import * as db from './db.js';
 
-export const APP_VERSION = '3.6.0';
+export const APP_VERSION = '3.7.0';
 
 const $ = (id) => document.getElementById(id);
 const DOW = ['日', '月', '火', '水', '木', '金', '土'];
@@ -129,12 +129,15 @@ function renderDay() {
 
   const items = itemsOn(d);
   const overlaps = overlappingIds(items);
-  const bath = items.filter((i) => i.kind === 'bath');
-  const swim = bath.filter((i) => i.swimsuit).length;
-  const parts = KIND_KEYS.map((k) => [KINDS[k], items.filter((i) => i.kind === k).length]).filter(([, n]) => n);
+  // まとめの件数にはキャンセルした予定を入れない
+  const active = items.filter((i) => !i.canceled);
+  const canceled = items.length - active.length;
+  const swim = active.filter((i) => i.kind === 'bath' && i.swimsuit).length;
+  const parts = KIND_KEYS.map((k) => [KINDS[k], active.filter((i) => i.kind === k).length]).filter(([, n]) => n);
   $('day-summary').innerHTML = items.length
-    ? `予定 ${items.length}件（${parts.map(([l, n]) => `${l}${n}`).join('・')}）`
+    ? `予定 ${active.length}件${parts.length ? `（${parts.map(([l, n]) => `${l}${n}`).join('・')}）` : ''}`
       + (swim ? `　<span class="swim-count">水着あり ${swim}件</span>` : '')
+      + (canceled ? `　<span class="cancel-count">キャンセル ${canceled}件</span>` : '')
     : '';
 
   const day = state.days.get(d);
@@ -188,7 +191,8 @@ function itemCard(i, overlap) {
   const c = clientOf(i);
   const dur = durationMin(i);
   const time = i.end ? `${shortTime(i.start)}〜${shortTime(i.end)}` : `${shortTime(i.start)}〜`;
-  return `<li><div class="item k-${esc(i.kind)}${overlap ? ' overlap' : ''}">
+  return `<li><div class="item k-${esc(i.kind)}${overlap ? ' overlap' : ''}${i.canceled ? ' canceled' : ''}">
+    ${i.canceled ? '<div class="cancel-banner">キャンセル</div>' : ''}
     <div class="row">
       <span class="time">${esc(time)}</span>
       <span class="row-right">${dur ? `<span class="dur">${fmtHM(dur)}</span>` : ''}<button type="button" class="edit-btn" data-item="${esc(i.id)}" aria-label="この予定を修正">修正</button></span>
@@ -199,7 +203,25 @@ function itemCard(i, overlap) {
     ${i.memo ? `<div class="memo">${esc(i.memo)}</div>` : ''}
     ${c?.note ? `<div class="cnote">${esc(c.note)}</div>` : ''}
     ${overlap ? '<div class="warn">ほかの予定と時間が重なっています</div>' : ''}
+    <button type="button" class="cancel-btn" data-cancel="${esc(i.id)}">${i.canceled ? 'キャンセルを取り消す' : 'キャンセルにする'}</button>
   </div></li>`;
+}
+
+/** 予定のキャンセル／キャンセルの取り消し（押し間違い防止のため確認を出す） */
+async function toggleCancel(id) {
+  const prev = state.items.get(id);
+  if (!prev) return;
+  const who = clientNameOf(prev);
+  const what = `${shortTime(prev.start)}〜 ${who ? `${who} さん ` : ''}${KINDS[prev.kind]}`;
+  if (!confirm(prev.canceled ? `${what}\nキャンセルを取り消して、元の予定に戻しますか？` : `${what}\nこの予定をキャンセルにしますか？`)) return;
+  const next = { ...prev, canceled: !prev.canceled };
+  if (!next.canceled) delete next.canceled;
+  await saveItem(next);
+  render();
+  toast(next.canceled ? 'キャンセルにしました' : '元の予定に戻しました', [{
+    label: '取り消す',
+    onClick: async () => { await saveItem(prev); render(); },
+  }]);
 }
 
 /* ---------- カレンダー ---------- */
@@ -238,8 +260,10 @@ function renderCalendar() {
     }
     if (list.length) {
       cls.push('has');
-      inner += `<span class="dots">${list.slice(0, 6).map((i) => `<span class="dot k-${esc(i.kind)}"></span>`).join('')}</span>`;
-      if (list.some((i) => i.kind === 'bath' && i.swimsuit)) inner += '<span class="swim-mark">水</span>';
+      // キャンセルした予定は赤い点。その日の予定が全部キャンセルならマス全体を赤くする
+      inner += `<span class="dots">${list.slice(0, 6).map((i) => `<span class="dot ${i.canceled ? 'k-cancel' : `k-${esc(i.kind)}`}"></span>`).join('')}</span>`;
+      if (list.every((i) => i.canceled)) cls.push('all-canceled');
+      if (list.some((i) => !i.canceled && i.kind === 'bath' && i.swimsuit)) inner += '<span class="swim-mark">水</span>';
       else if (!day) inner += `<span class="cnt">${list.length}件</span>`;
       label += ` 予定${list.length}件`;
     }
@@ -254,6 +278,7 @@ function renderCalendar() {
     ['予定の合計', `${s.total}件`],
     ...KIND_KEYS.map((k) => [`<span class="dot k-${k}"></span>${KINDS[k]}`, `${s.byKind[k]}件`]),
     ['<span class="swim-mark">水</span>水着あり', `${s.swimsuit}件`],
+    ['<span class="dot k-cancel"></span>キャンセル', `${s.canceled}件`],
   ];
   $('month-summary').innerHTML = rows.map(([k, v]) => `<dt>${k}</dt><dd>${v}</dd>`).join('');
 }
@@ -400,7 +425,8 @@ async function deleteCurrentItem() {
 function copyCurrentItem() {
   const src = editing.item;
   $('item-dialog').close();
-  openItem({ ...src, id: null, date: addDays(src.date, 7) }, true);
+  const { canceled, ...copy } = src; // コピーした予定はキャンセルにしない
+  openItem({ ...copy, id: null, date: addDays(src.date, 7) }, true);
   $('item-title').textContent = '予定のコピー（日付を確認してください）';
 }
 
@@ -698,6 +724,8 @@ function bindEvents() {
   // 予定・日付・利用者のタップ
   document.querySelector('main').addEventListener('click', (e) => {
     if (e.target.closest('[data-day-edit]')) { openDay(); return; }
+    const cb = e.target.closest('[data-cancel]');
+    if (cb) { toggleCancel(cb.dataset.cancel); return; }
     const it = e.target.closest('[data-item]');
     if (it) { openItem(state.items.get(it.dataset.item), false); return; }
     const d = e.target.closest('[data-date]');

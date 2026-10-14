@@ -142,3 +142,19 @@ test('利用者はよく行く順（直近90日の回数→全期間→苗字）
   ];
   assert.deepEqual(sortClientsByVisits(clients, items, '2026-10-05').map((c) => c.id), ['b', 'c', 'a', 'd']);
 });
+
+test('キャンセルした予定は件数・重なり・よく行く順に入れない', () => {
+  const list = [
+    item({ id: '1', kind: 'bath', swimsuit: true, canceled: true, clientId: 'a' }),
+    item({ id: '2', kind: 'move', start: '09:30', end: '11:00', clientId: 'b' }),
+  ];
+  const s = summarizeMonth(list, '2026-10');
+  assert.equal(s.total, 1);
+  assert.equal(s.canceled, 1);
+  assert.equal(s.swimsuit, 0);
+  assert.deepEqual([...overlappingIds(list)], []); // 9:00〜10:30 と重なるがキャンセルなので対象外
+  assert.deepEqual(sortClientsByVisits([{ id: 'a', name: 'あ' }, { id: 'b', name: 'い' }], list, '2026-10-05').map((c) => c.id), ['b', 'a']);
+  const back = importCSV(toCSV(list, [], () => ''));
+  assert.equal(back.items[0].canceled, true);
+  assert.equal(back.items[1].canceled, undefined);
+});

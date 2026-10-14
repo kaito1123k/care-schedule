@@ -6,7 +6,7 @@ import { SWIMSUIT_VALUES, validateItem, validateDay } from './calc.js';
 // record_type=client … 利用者（client_name=苗字, swimsuit: need / no / unknown = 入浴介助の水着の初期値）
 export const CSV_HEADER = [
   'record_type', 'id', 'date', 'start', 'end', 'break_start', 'break_end',
-  'client_name', 'kind', 'swimsuit', 'memo', 'full_name', 'town', 'client_note',
+  'client_name', 'kind', 'swimsuit', 'memo', 'full_name', 'town', 'client_note', 'canceled',
 ];
 
 function esc(v) {
@@ -32,7 +32,7 @@ export function toCSV(items, clients, clientName, days = []) {
   for (const i of items) {
     lines.push(line({
       record_type: 'item', id: i.id, date: i.date, start: i.start, end: i.end, client_name: clientName(i),
-      kind: i.kind, swimsuit: i.kind === 'bath' ? (i.swimsuit ? 1 : 0) : '', memo: i.memo,
+      kind: i.kind, swimsuit: i.kind === 'bath' ? (i.swimsuit ? 1 : 0) : '', memo: i.memo, canceled: i.canceled ? 1 : '',
     }));
   }
   // Excelで文字化けしないようBOMを付ける
@@ -103,6 +103,7 @@ export function importCSV(text) {
         clientName: get(row, 'client_name'), kind: get(row, 'kind'),
         swimsuit: get(row, 'swimsuit') === '1', memo: getRaw(row, 'memo'),
       };
+      if (get(row, 'canceled') === '1') item.canceled = true;
       const err = validateItem(item);
       if (err) { errors.push(`${ln}行目: ${err}`); return; }
       if (!['', '0', '1'].includes(get(row, 'swimsuit'))) { errors.push(`${ln}行目: 水着は 1（あり）か 0（なし）にしてください`); return; }

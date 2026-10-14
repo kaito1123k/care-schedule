@@ -113,7 +113,8 @@ export function sortItems(items) {
 /** 同じ日で時間が重なっている予定のidを返す（終了時刻のある予定だけで判定） */
 export function overlappingIds(dayItems) {
   const ids = new Set();
-  const timed = sortItems(dayItems).filter((i) => durationMin(i) !== null);
+  // キャンセルした予定は重なりの判定に入れない
+  const timed = sortItems(dayItems).filter((i) => !i.canceled && durationMin(i) !== null);
   for (let a = 0; a < timed.length; a++) {
     for (let b = a + 1; b < timed.length; b++) {
       if (toMin(timed[b].start) >= toMin(timed[a].end)) break;
@@ -124,22 +125,24 @@ export function overlappingIds(dayItems) {
   return ids;
 }
 
-/** "YYYY-MM" の月の予定を内容別に数える */
+/** "YYYY-MM" の月の予定を内容別に数える（キャンセルは別に数え、ほかの件数には入れない） */
 export function summarizeMonth(items, ym) {
   const byKind = Object.fromEntries(KIND_KEYS.map((k) => [k, 0]));
   let total = 0;
   let swimsuit = 0;
   let minutes = 0;
+  let canceled = 0;
   const days = new Set();
   for (const i of items) {
     if (!i.date.startsWith(ym + '-')) continue;
+    if (i.canceled) { canceled += 1; continue; }
     total += 1;
     days.add(i.date);
     if (i.kind in byKind) byKind[i.kind] += 1;
     if (i.kind === 'bath' && i.swimsuit) swimsuit += 1;
     minutes += durationMin(i) || 0;
   }
-  return { total, days: days.size, byKind, swimsuit, minutes };
+  return { total, days: days.size, byKind, swimsuit, minutes, canceled };
 }
 
 const pad = (n) => String(n).padStart(2, '0');
@@ -163,7 +166,7 @@ export function sortClientsByVisits(clients, items, today, recentDays = 90) {
   const recent = new Map();
   const total = new Map();
   for (const i of items) {
-    if (!i.clientId) continue;
+    if (!i.clientId || i.canceled) continue;
     total.set(i.clientId, (total.get(i.clientId) || 0) + 1);
     if (i.date >= since) recent.set(i.clientId, (recent.get(i.clientId) || 0) + 1);
   }
