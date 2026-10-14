@@ -7,7 +7,7 @@ import {
 import { toCSV, importCSV } from './csv.js';
 import * as db from './db.js';
 
-export const APP_VERSION = '3.5.1';
+export const APP_VERSION = '3.6.0';
 
 const $ = (id) => document.getElementById(id);
 const DOW = ['日', '月', '火', '水', '木', '金', '土'];
@@ -179,19 +179,27 @@ function dowClass(date) {
   return { 0: 'sun', 6: 'sat' }[new Date(y, m - 1, d).getDay()] || '';
 }
 
+/**
+ * 予定カード。カード自体は押しても何も起きない（うっかり修正画面が開かないように）。
+ * 修正は右上の「修正」ボタンから行う。
+ */
 function itemCard(i, overlap) {
   const name = clientNameOf(i);
   const c = clientOf(i);
   const dur = durationMin(i);
   const time = i.end ? `${shortTime(i.start)}〜${shortTime(i.end)}` : `${shortTime(i.start)}〜`;
-  return `<li><button type="button" class="item k-${esc(i.kind)}${overlap ? ' overlap' : ''}" data-item="${esc(i.id)}">
-    <span class="row"><span class="time">${esc(time)}</span>${dur ? `<span class="dur">${fmtHM(dur)}</span>` : ''}</span>
-    <span class="who${name ? '' : ' none'}">${name ? `${esc(name)} さん` : '利用者なし'}${c?.town ? `<span class="town">${esc(c.town)}</span>` : ''}</span>
-    <span class="tags"><span class="kind-tag">${esc(KINDS[i.kind])}</span>${i.kind === 'bath' && i.swimsuit ? '<span class="swim-tag">水着あり</span>' : ''}</span>
-    ${i.memo ? `<span class="memo">${esc(i.memo)}</span>` : ''}
-    ${c?.note ? `<span class="cnote">${esc(c.note)}</span>` : ''}
-    ${overlap ? '<span class="warn">ほかの予定と時間が重なっています</span>' : ''}
-  </button></li>`;
+  return `<li><div class="item k-${esc(i.kind)}${overlap ? ' overlap' : ''}">
+    <div class="row">
+      <span class="time">${esc(time)}</span>
+      <span class="row-right">${dur ? `<span class="dur">${fmtHM(dur)}</span>` : ''}<button type="button" class="edit-btn" data-item="${esc(i.id)}" aria-label="この予定を修正">修正</button></span>
+    </div>
+    <div class="who${name ? '' : ' none'}">${name ? `${esc(name)} さん` : '利用者なし'}${c?.town ? `<span class="town">${esc(c.town)}</span>` : ''}</div>
+    ${c?.fullName ? `<div class="fullname">${esc(c.fullName)}</div>` : ''}
+    <div class="tags"><span class="kind-tag">${esc(KINDS[i.kind])}</span>${i.kind === 'bath' && i.swimsuit ? '<span class="swim-tag">水着あり</span>' : ''}</div>
+    ${i.memo ? `<div class="memo">${esc(i.memo)}</div>` : ''}
+    ${c?.note ? `<div class="cnote">${esc(c.note)}</div>` : ''}
+    ${overlap ? '<div class="warn">ほかの予定と時間が重なっています</div>' : ''}
+  </div></li>`;
 }
 
 /* ---------- カレンダー ---------- */

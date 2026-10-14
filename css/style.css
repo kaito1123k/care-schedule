@@ -530,3 +530,18 @@ time-select .colon { font-weight: 900; font-size: 20px; }
 .off-day .btn { margin-top: 12px; min-height: 48px; font-size: 17px; }
 .btn-big.add-top { margin-top: 10px; }
 #edit-day { margin-top: 16px; }
+
+/* 予定カード：カードは押せない。右上の「修正」ボタンだけで修正画面を開く */
+.item .row { align-items: center; }
+.item .row-right { display: flex; align-items: center; gap: 10px; flex: none; }
+.edit-btn {
+  min-height: 40px;
+  padding: 4px 14px;
+  border-radius: 10px;
+  border: 2px solid var(--border);
+  background: var(--surface);
+  color: var(--primary);
+  font-weight: 800;
+  font-size: 16px;
+}
+.item .fullname { font-size: 15px; font-weight: 700; color: var(--text-2); line-height: 1.3; }
